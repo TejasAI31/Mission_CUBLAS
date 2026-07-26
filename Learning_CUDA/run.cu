@@ -17,5 +17,5 @@
 
 int main()
 {
-	custmat_v0::matmul();
+	tcore_custmat_v4::matmul();
 }
