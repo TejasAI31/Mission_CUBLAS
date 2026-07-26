@@ -1,4 +1,4 @@
-![Mission CUBLAS](Learning_CUDA/assets/mission_cublas.png)
+![Mission CUBLAS](Learning_CUDA/assets/logo.png)
 # Mission: CUBLAS
 High-performance CUDA matrix multiplication (GEMM) benchmark and optimization pipeline aiming to match or surpass NVIDIA cuBLAS Tensor Core performance for 4096x4096 floating-point matrix operations.
 
