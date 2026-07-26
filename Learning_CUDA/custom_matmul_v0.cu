@@ -13,10 +13,10 @@ namespace custmat_v0 {
         }
     }
 
-    __global__ void gpuMult(int* da, int* db, int* dc, int m, int k, int n)
+    __global__ void gpuMult(float* da, float* db, float* dc, int m, int k, int n)
     {
-        __shared__ int A[SHMEM_SIZE];
-        __shared__ int B[SHMEM_SIZE];
+        __shared__ float A[SHMEM_SIZE];
+        __shared__ float B[SHMEM_SIZE];
 
         int tx = threadIdx.x;
         int ty = threadIdx.y;
@@ -26,7 +26,7 @@ namespace custmat_v0 {
         int row = by * blockDim.y + ty;
         int col = bx * blockDim.x + tx;
 
-        int sum = 0;
+        float sum = 0.0f;
         for (int i = 0; i < (k + TILESIZE - 1) / TILESIZE; i++)
         {
             int tiledCol = i * TILESIZE + tx;
@@ -35,12 +35,12 @@ namespace custmat_v0 {
             if (row < m && tiledCol < k)
                 A[ty * TILESIZE + tx] = da[row * k + tiledCol];
             else
-                A[ty * TILESIZE + tx] = 0;
+                A[ty * TILESIZE + tx] = 0.0f;
 
             if (tiledRow < k && col < n)
                 B[ty * TILESIZE + tx] = db[tiledRow * n + col];
             else
-                B[ty * TILESIZE + tx] = 0;
+                B[ty * TILESIZE + tx] = 0.0f;
 
             __syncthreads();
 
@@ -103,8 +103,7 @@ namespace custmat_v0 {
         for (int i = 0; i < K * N; i++) b_float[i] = (float)b[i];
 
         //---------------- GPU Setup ----------------//
-        int* da_int, * db_int;
-        float* dc_custom_gpu, * da_float_gpu, * db_float_gpu, * dc_cublas_gpu;
+        float* da_float_gpu, * db_float_gpu, * dc_custom_gpu, * dc_cublas_gpu;
 
         dim3 blocksize(BLOCKSIZE, BLOCKSIZE);
         dim3 gridsize(
@@ -119,11 +118,9 @@ namespace custmat_v0 {
         cudaEventCreate(&startD2H);    cudaEventCreate(&stopD2H);
 
         //---------------- Memory Allocation ----------------//
-        cudaMalloc(&da_int, sizeof(int) * M * K);
-        cudaMalloc(&db_int, sizeof(int) * K * N);
-        cudaMalloc(&dc_custom_gpu, sizeof(float) * M * N);
         cudaMalloc(&da_float_gpu, sizeof(float) * M * K);
         cudaMalloc(&db_float_gpu, sizeof(float) * K * N);
+        cudaMalloc(&dc_custom_gpu, sizeof(float) * M * N);
         cudaMalloc(&dc_cublas_gpu, sizeof(float) * M * N);
 
         // cuBLAS setup with Tensor Cores
@@ -136,8 +133,6 @@ namespace custmat_v0 {
 
         //---------------- Host -> Device ----------------//
         cudaEventRecord(startH2D);
-        cudaMemcpy(da_int, a, sizeof(int) * M * K, cudaMemcpyHostToDevice);
-        cudaMemcpy(db_int, b, sizeof(int) * K * N, cudaMemcpyHostToDevice);
         cudaMemcpy(da_float_gpu, a_float, sizeof(float) * M * K, cudaMemcpyHostToDevice);
         cudaMemcpy(db_float_gpu, b_float, sizeof(float) * K * N, cudaMemcpyHostToDevice);
         cudaEventRecord(stopH2D);
@@ -146,7 +141,7 @@ namespace custmat_v0 {
         //---------------- Warm-up ----------------//
         for (int i = 0; i < 10; i++)
         {
-            gpuMult << <gridsize, blocksize >> > (da_int, db_int, (int*)dc_custom_gpu, M, K, N);
+            gpuMult << <gridsize, blocksize >> > (da_float_gpu, db_float_gpu, dc_custom_gpu, M, K, N);
             cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K,
                 &alpha, db_float_gpu, CUDA_R_32F, N,
                 da_float_gpu, CUDA_R_32F, K,
@@ -157,23 +152,21 @@ namespace custmat_v0 {
 
         //---------------- Custom Kernel Timing ----------------//
         cudaEventRecord(startCustom);
-        for (int i = 0; i < 100; i++)
-        {
-            gpuMult << <gridsize, blocksize >> > (da_int, db_int, (int*)dc_custom_gpu, M, K, N);
-        }
+
+           gpuMult << <gridsize, blocksize >> > (da_float_gpu, db_float_gpu, dc_custom_gpu, M, K, N);
+
         cudaEventRecord(stopCustom);
         cudaEventSynchronize(stopCustom);
 
         //---------------- cuBLAS Tensor Core Timing ----------------//
         cudaEventRecord(startCublas);
-        for (int i = 0; i < 100; i++)
-        {
-            cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K,
+
+        cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K,
                 &alpha, db_float_gpu, CUDA_R_32F, N,
                 da_float_gpu, CUDA_R_32F, K,
                 &beta, dc_cublas_gpu, CUDA_R_32F, N,
                 CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
-        }
+
         cudaEventRecord(stopCublas);
         cudaEventSynchronize(stopCublas);
 
@@ -189,9 +182,6 @@ namespace custmat_v0 {
         cudaEventElapsedTime(&customKernelTime, startCustom, stopCustom);
         cudaEventElapsedTime(&cublasKernelTime, startCublas, stopCublas);
         cudaEventElapsedTime(&d2hTime, startD2H, stopD2H);
-
-        customKernelTime /= 100.0f;
-        cublasKernelTime /= 100.0f;
 
         //---------------- Results & Metrics ----------------//
         bool correct = verify(c_custom, c_cublas, M, N);
@@ -244,8 +234,7 @@ namespace custmat_v0 {
         cudaEventDestroy(startD2H);    cudaEventDestroy(stopD2H);
 
         cublasDestroy(handle);
-        cudaFree(da_int); cudaFree(db_int); cudaFree(dc_custom_gpu);
-        cudaFree(da_float_gpu); cudaFree(db_float_gpu); cudaFree(dc_cublas_gpu);
+        cudaFree(da_float_gpu); cudaFree(db_float_gpu); cudaFree(dc_custom_gpu); cudaFree(dc_cublas_gpu);
 
         free(a); free(b); free(c_custom); free(c_cublas);
         free(a_float); free(b_float);
