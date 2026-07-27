@@ -1,5 +1,5 @@
 # Mission: CUBLAS
-![Mission CUBLAS](https://files.catbox.moe/8eeeeh.png)
+![Mission CUBLAS](Learning_CUDA/assets/logo.png)
 High-performance CUDA matrix multiplication (GEMM) benchmark and optimization pipeline aiming to match or surpass NVIDIA cuBLAS Tensor Core performance for 4096x4096 floating-point matrix operations on an RTX 4060 Mobile.
 
 The project demonstrates an iterative engineering progression across 5 distinct kernel implementations—starting from a naive shared memory implementation in FP32 up to an asynchronous, multi-stage ring-buffered pipeline utilizing Tensor Cores (WMMA) and 128-bit memory instructions in FP16/FP32. The final optimization iteration achieves **92% of State of the Art cuBLAS Tensor Core performance**.
