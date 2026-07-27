@@ -3,9 +3,9 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-#define M 1000
-#define K 1000
-#define N 1000
+#define M 4096
+#define K 4096
+#define N 4096
 
 #define BLOCKSIZE 32
 #define TILESIZE BLOCKSIZE

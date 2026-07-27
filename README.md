@@ -1,22 +1,24 @@
-![Mission CUBLAS](Learning_CUDA/assets/logo.png)
 # Mission: CUBLAS
-High-performance CUDA matrix multiplication (GEMM) benchmark and optimization pipeline aiming to match or surpass NVIDIA cuBLAS Tensor Core performance for 4096x4096 floating-point matrix operations.
+![Mission CUBLAS](https://files.catbox.moe/8eeeeh.png)
+High-performance CUDA matrix multiplication (GEMM) benchmark and optimization pipeline aiming to match or surpass NVIDIA cuBLAS Tensor Core performance for 4096x4096 floating-point matrix operations on an RTX 4060 Mobile.
 
-The project demonstrates an iterative engineering progression across 5 distinct kernel implementations—starting from a naive shared memory implementation in FP32 up to an asynchronous, multi-stage ring-buffered pipeline utilizing Tensor Cores (WMMA) and 128-bit memory instructions in FP16/FP32. The final optimization iteration achieves **92% of State of the Art cuBLAS Tensor Core performance on an RTX 4060**.
+The project demonstrates an iterative engineering progression across 5 distinct kernel implementations—starting from a naive shared memory implementation in FP32 up to an asynchronous, multi-stage ring-buffered pipeline utilizing Tensor Cores (WMMA) and 128-bit memory instructions in FP16/FP32. The final optimization iteration achieves **92% of State of the Art cuBLAS Tensor Core performance**.
 
 ---
 
 ## Performance Overview
 
-All benchmark metrics below represent operations on 4096x4096 matrices ($M=4096, N=4096, K=4096$). Total FLOP count per GEMM: ~137.44 GFLOPs.
+All benchmark metrics below represent operations on 4096x4096 matrices (M=4096, N=4096, K=4096).
 
 | Version | Precision | Key Architectural Optimizations | Execution Time (ms) | Throughput (TFLOPS) | Throughput vs cuBLAS |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **v0** | FP32 | Naive Shared Memory Tiling, Dynamic Boundary Checks | **`157.97 ms`** | **`1.11 TFLOPS`** | **`3.86`%** |
+| **cuBLAS CUDA** | FP16/FP32 ||| **`6.21 TFLOPS`** |  |
 | **v1** | FP16/FP32 | Tensor Core WMMA, 2x2 Spatial Warp Grid, Vectorized Loads | **`12.98 ms`** | **`10.58 TFLOPS`** | **`33.75`%** |
 | **v2** | FP16/FP32 | Double-Buffered Pipelining, 128x128 Tile, 4x4 Warp Sub-Tiling | **`6.62 ms`** | **`24.44 TFLOPS`** | **`78.0`%** |
 | **v3** | FP16/FP32 | 3-Stage Async Pipeline (`cp.async`), Padded SMEM Layout | **`5.27 ms`** | **`26.03 TFLOPS`** | **`83.23`%** |
 | **v4** | FP16/FP32 | Coalesced 128-bit Vectorized Async Memory Loop Unrolling | **`4.74 ms`** | **`28.94 TFLOPS`** | **`92.12`%** |
+| **cuBLAS Tensor** | FP16/FP32 || **`4.37 ms`** | **`31.42 TFLOPS`** | **`100`%** |
 
 ---
 
@@ -135,8 +137,3 @@ Compile the suite using `nvcc` with `-O3` optimization flags:
 
 ```bash
 nvcc -O3 -std=c++17 -lcublas main.cu -o mission_cublas
-```
-
-### Note
-**This is a work in progress.** In front of you is an initial preview of the project.
-Next Aim: **PTX**

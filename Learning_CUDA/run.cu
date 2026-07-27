@@ -17,9 +17,9 @@
 
 int main()
 {
-	custmat_v0::matmul();
+	//custmat_v0::matmul();
 	//tcore_custmat_v1::matmul();
 	//tcore_custmat_v2::matmul();
 	//tcore_custmat_v3::matmul();
-	//tcore_custmat_v4::matmul();
+	tcore_custmat_v4::matmul();
 }
